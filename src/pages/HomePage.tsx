@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Calendar, Clock, ExternalLink, Lightbulb, Rocket, Sparkles } from 'lucide-react';
+import { ArrowRight, Calendar, Clock, ExternalLink, Lightbulb, Rocket, Sparkles, AlertCircle } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useArticles } from '../context/ArticleContext';
 import { useAuth } from '../context/AuthContext';
@@ -12,10 +12,23 @@ function HomePage() {
   
   // Filter functions for categories
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  // État pour suivre les erreurs de chargement des médias
+  const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({});
   
   const filteredArticles = activeFilter === 'all' 
     ? articles 
     : articles.filter(article => article.category === activeFilter);
+
+  // Image par défaut en cas d'erreur
+  const fallbackImage = 'https://images.unsplash.com/photo-1553484771-689277e6c44c?q=80&w=1770&auto=format&fit=crop';
+
+  // Gérer les erreurs de média
+  const handleMediaError = (articleId: number | string) => {
+    setMediaErrors(prev => ({
+      ...prev,
+      [String(articleId)]: true
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -83,64 +96,84 @@ function HomePage() {
 
         {/* Articles grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredArticles.map((article) => {
-            const categoryName = categories.find(c => c.id === article.category)?.name || 
-              article.category.charAt(0).toUpperCase() + article.category.slice(1);
-            
-            return (
-              <article 
-                key={article.id} 
-                className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
-              >
-                <div className="h-56 overflow-hidden">
-                  {article.videoUrl && article.videoUrl !== 'video-uploaded' ? (
-                    <video 
-                      src={buildVideoUrl(article.videoUrl)} 
-                      controls
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img 
-                      src={buildImageUrl(article.imageUrl, 400)} 
-                      alt={article.title} 
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                    />
-                  )}
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center mb-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      article.category === 'innovation' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : article.category === 'project'
-                          ? 'bg-purple-100 text-purple-800'
-                          : 'bg-indigo-100 text-indigo-800'
-                    }`}>
-                      {categoryName}
-                    </span>
-                    <div className="flex items-center text-gray-500 text-sm ml-auto">
-                      <Calendar className="w-3 h-3 mr-1" />
-                      <span>{article.date}</span>
+          {filteredArticles.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-gray-500">Aucun article trouvé pour cette catégorie</p>
+            </div>
+          ) : (
+            filteredArticles.map((article) => {
+              const categoryName = categories.find(c => c.id === article.category)?.name || 
+                article.category.charAt(0).toUpperCase() + article.category.slice(1);
+              
+              const hasMediaError = mediaErrors[String(article.id)];
+              
+              return (
+                <article 
+                  key={article.id} 
+                  className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
+                >
+                  <div className="h-56 overflow-hidden relative">
+                    {article.videoUrl && article.videoUrl !== 'video-uploaded' && !hasMediaError ? (
+                      <video 
+                        src={buildVideoUrl(article.videoUrl)} 
+                        controls
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={() => handleMediaError(article.id)}
+                      />
+                    ) : (
+                      <img 
+                        src={hasMediaError ? fallbackImage : buildImageUrl(article.imageUrl, 400)} 
+                        alt={article.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                        loading="lazy"
+                        onError={() => handleMediaError(article.id)}
+                      />
+                    )}
+                    
+                    {/* Indicateur d'erreur de média */}
+                    {hasMediaError && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-1 text-red-400" />
+                        <span className="text-xs">Erreur de chargement</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        article.category === 'innovation' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : article.category === 'project'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-indigo-100 text-indigo-800'
+                      }`}>
+                        {categoryName}
+                      </span>
+                      <div className="flex items-center text-gray-500 text-sm ml-auto">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        <span>{article.date}</span>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-bold mb-3 text-gray-800">{article.title}</h2>
+                    <p className="text-gray-600 mb-4">{article.summary}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-gray-500 text-sm">
+                        <Clock className="w-3 h-3 mr-1" />
+                        <span>{article.readTime}</span>
+                      </div>
+                      <Link 
+                        to={`/article/${article.id}`}
+                        className="text-blue-600 hover:text-purple-600 font-medium flex items-center transition-colors"
+                      >
+                        Read more <ArrowRight className="w-4 h-4 ml-1" />
+                      </Link>
                     </div>
                   </div>
-                  <h2 className="text-xl font-bold mb-3 text-gray-800">{article.title}</h2>
-                  <p className="text-gray-600 mb-4">{article.summary}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-gray-500 text-sm">
-                      <Clock className="w-3 h-3 mr-1" />
-                      <span>{article.readTime}</span>
-                    </div>
-                    <Link 
-                      to={`/article/${article.id}`}
-                      className="text-blue-600 hover:text-purple-600 font-medium flex items-center transition-colors"
-                    >
-                      Read more <ArrowRight className="w-4 h-4 ml-1" />
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            })
+          )}
         </div>
 
         {/* Newsletter subscription */}
