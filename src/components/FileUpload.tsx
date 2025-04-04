@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Link } from 'lucide-react';
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
+  onUrlEnter: (url: string) => void;
   accept: string;
   maxSize: number; // in MB
   label: string;
@@ -11,6 +12,7 @@ interface FileUploadProps {
 
 const FileUpload: React.FC<FileUploadProps> = ({ 
   onFileSelect, 
+  onUrlEnter,
   accept, 
   maxSize, 
   label,
@@ -19,6 +21,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl || null);
+  const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
+  const [imageUrl, setImageUrl] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
@@ -85,15 +89,41 @@ const FileUpload: React.FC<FileUploadProps> = ({
       };
       reader.readAsDataURL(file);
     } else if (file.type.startsWith('video/')) {
-      // For videos, we'll just show the file name as preview
+      // For videos, we'll just show a placeholder
       setPreview('video-preview');
     }
     
     onFileSelect(file);
   };
 
+  const handleUrlSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!imageUrl) {
+      setError('Please enter a URL');
+      return;
+    }
+
+    // Vérification basique que c'est une URL
+    if (!imageUrl.startsWith('http')) {
+      setError('Please enter a valid URL starting with http:// or https://');
+      return;
+    }
+
+    setError(null);
+    setPreview(imageUrl);
+    onUrlEnter(imageUrl);
+    setShowUrlInput(false);
+  };
+
   const openFileSelector = () => {
-    inputRef.current?.click();
+    if (!showUrlInput) {
+      inputRef.current?.click();
+    }
+  };
+
+  const toggleUrlInput = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowUrlInput(!showUrlInput);
   };
 
   return (
@@ -122,30 +152,70 @@ const FileUpload: React.FC<FileUploadProps> = ({
           onChange={handleChange}
         />
         
-        {preview ? (
-          <div className="mb-3">
-            {preview === 'video-preview' ? (
-              <div className="bg-gray-200 p-4 rounded flex items-center justify-center">
-                <span className="text-gray-700">Video file selected</span>
-              </div>
-            ) : (
-              <img 
-                src={preview} 
-                alt="Preview" 
-                className="max-h-40 mx-auto rounded"
+        {showUrlInput ? (
+          <div onClick={(e) => e.stopPropagation()} className="relative z-10">
+            <form onSubmit={handleUrlSubmit} className="flex flex-col space-y-2">
+              <input
+                type="text"
+                placeholder="Enter image URL..."
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
               />
-            )}
+              <div className="flex space-x-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleUrlInput}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         ) : (
-          <Upload className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+          <>
+            {preview ? (
+              <div className="mb-3">
+                {preview === 'video-preview' ? (
+                  <div className="bg-gray-200 p-4 rounded flex items-center justify-center">
+                    <span className="text-gray-700">Video file selected</span>
+                  </div>
+                ) : (
+                  <img 
+                    src={preview} 
+                    alt="Preview" 
+                    className="max-h-40 mx-auto rounded"
+                  />
+                )}
+              </div>
+            ) : (
+              <Upload className="h-10 w-10 mx-auto text-gray-400 mb-2" />
+            )}
+            
+            <p className="text-sm text-gray-500">
+              Drag and drop your file here, or click to select
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Max size: {maxSize}MB. Accepted formats: {accept.replace(/\./g, '')}
+            </p>
+            <button
+              type="button"
+              onClick={toggleUrlInput}
+              className="mt-3 inline-flex items-center text-sm text-blue-500 hover:text-blue-700"
+            >
+              <Link className="h-4 w-4 mr-1" />
+              Or enter an image URL
+            </button>
+          </>
         )}
-        
-        <p className="text-sm text-gray-500">
-          Drag and drop your file here, or click to select
-        </p>
-        <p className="text-xs text-gray-400 mt-1">
-          Max size: {maxSize}MB. Accepted formats: {accept.replace(/\./g, '')}
-        </p>
       </div>
       
       {error && (
@@ -153,6 +223,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
       )}
     </div>
   );
+};
+
+// Définir des props par défaut pour la rétrocompatibilité
+FileUpload.defaultProps = {
+  onUrlEnter: () => {} // Fonction vide par défaut
 };
 
 export default FileUpload;
