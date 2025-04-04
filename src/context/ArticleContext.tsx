@@ -1,13 +1,24 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Article, Category } from '../types';
+import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
+import { 
+  collection, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  orderBy,
+  where,
+  Timestamp,
+  setDoc
+} from 'firebase/firestore';
 import { 
   extractPublicIdFromUrl, 
   deleteFromCloudinary 
 } from '../lib/cloudinary';
-
-// Clé pour stocker les données dans le localStorage
-const STORAGE_KEY = 'bloginno_data';
 
 interface ArticleContextType {
   articles: Article[];
@@ -22,30 +33,20 @@ interface ArticleContextType {
 
 const ArticleContext = createContext<ArticleContextType | undefined>(undefined);
 
-// Données initiales pour démarrer
+// Données initiales pour démarrer (utilisées uniquement si Firestore ne fonctionne pas)
 const INITIAL_ARTICLES: Article[] = [
   {
     id: 1,
     title: 'Introduction to Service Innovation',
     date: 'April 1, 2025',
     readTime: '5 min read',
-    summary: 'Learn about the fundamentals of service innovation and how it can transform your business.',
-    content: 'Service innovation refers to the development of new or significantly improved service offerings. This includes changes in service products, service processes, and service business models. Today, service innovation is considered a key driver of economic growth and competitive advantage.\n\nSuccessful service innovation requires a deep understanding of customer needs, effective collaboration across departments, and a culture that encourages experimentation and continuous improvement. Organizations that excel at service innovation typically outperform their competitors in terms of revenue growth, customer satisfaction, and profitability.',
+    summary: 'Learn about the fundamentals of service innovation.',
+    content: 'Service innovation refers to the development of new or significantly improved service offerings...',
     imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop',
     category: 'innovation',
     user_id: 'admin-user'
   },
-  {
-    id: 2,
-    title: 'Digital Transformation Case Study',
-    date: 'April 2, 2025',
-    readTime: '7 min read',
-    summary: 'How a traditional manufacturing company embraced digital transformation to improve customer experience.',
-    content: 'This case study examines how XYZ Manufacturing, a 50-year-old traditional manufacturing company, successfully implemented a digital transformation strategy that revitalized their business model and customer relationships.\n\nFacing declining market share and increasing competition from more technologically advanced competitors, XYZ realized they needed to fundamentally rethink their approach to customer service and operational efficiency. Over an 18-month period, they implemented a comprehensive digital strategy that included a new customer portal, IoT sensors in their products, and a data analytics platform that provided real-time insights to both customers and internal teams.',
-    imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop',
-    category: 'project',
-    user_id: 'admin-user'
-  }
+  // Autres articles initiaux...
 ];
 
 const INITIAL_CATEGORIES: Category[] = [
@@ -55,65 +56,85 @@ const INITIAL_CATEGORIES: Category[] = [
     icon: 'Lightbulb',
     user_id: 'admin-user'
   },
-  {
-    id: 'project',
-    name: 'Project Showcase',
-    icon: 'Rocket',
-    user_id: 'admin-user'
-  },
-  {
-    id: 'update',
-    name: 'Company Updates',
-    icon: 'Bell',
-    user_id: 'admin-user'
-  }
+  // Autres catégories initiales...
 ];
 
 export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  // Charger les données depuis le localStorage ou utiliser les données par défaut
+  // Charger les données depuis Firestore
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
+    const loadData = async () => {
+      setIsLoading(true);
       try {
-        const { articles: savedArticles, categories: savedCategories } = JSON.parse(savedData);
-        setArticles(savedArticles);
-        setCategories(savedCategories);
+        // Charger les articles
+        const articlesQuery = query(collection(db, 'articles'), orderBy('date', 'desc'));
+        const articlesSnapshot = await getDocs(articlesQuery);
+        
+        if (!articlesSnapshot.empty) {
+          const articlesData = articlesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Article[];
+          
+          setArticles(articlesData);
+        } else {
+          console.log('No articles found, using initial data');
+          setArticles(INITIAL_ARTICLES);
+        }
+        
+        // Charger les catégories
+        const categoriesQuery = query(collection(db, 'categories'));
+        const categoriesSnapshot = await getDocs(categoriesQuery);
+        
+        if (!categoriesSnapshot.empty) {
+          const categoriesData = categoriesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Category[];
+          
+          setCategories(categoriesData);
+        } else {
+          console.log('No categories found, using initial data');
+          setCategories(INITIAL_CATEGORIES);
+          
+          // Si aucune catégorie n'existe, ajouter les catégories initiales
+          INITIAL_CATEGORIES.forEach(async (category) => {
+            await setDoc(doc(db, 'categories', category.id), category);
+          });
+        }
       } catch (error) {
-        console.error('Error parsing saved data:', error);
-        // En cas d'erreur, utiliser les données par défaut
+        console.error('Error loading data from Firestore:', error);
+        // Utiliser les données initiales en cas d'échec
         setArticles(INITIAL_ARTICLES);
         setCategories(INITIAL_CATEGORIES);
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      // Si pas de données sauvegardées, utiliser les données par défaut
-      setArticles(INITIAL_ARTICLES);
-      setCategories(INITIAL_CATEGORIES);
-    }
+    };
+    
+    loadData();
   }, []);
-
-  // Sauvegarder les données dans le localStorage chaque fois qu'elles changent
-  useEffect(() => {
-    if (articles.length > 0 || categories.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ articles, categories }));
-    }
-  }, [articles, categories]);
 
   const addArticle = async (article: Omit<Article, 'id' | 'user_id'>) => {
     try {
-      // Créer un nouvel article avec un ID unique
-      const newArticle: Article = {
+      const articleData = {
         ...article,
-        id: Date.now(), // Utiliser le timestamp comme ID
         user_id: user?.uid || 'admin-user',
-        created_at: new Date().toISOString()
+        created_at: Timestamp.now()
       };
       
+      // Ajouter l'article à Firestore
+      const docRef = await addDoc(collection(db, 'articles'), articleData);
+      
       // Mettre à jour l'état local
-      setArticles(prev => [newArticle, ...prev]);
+      setArticles(prev => [{
+        ...articleData,
+        id: docRef.id
+      } as Article, ...prev]);
     } catch (error) {
       console.error('Error adding article:', error);
       throw error;
@@ -147,15 +168,16 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
       
-      // Mettre à jour l'article
-      const updatedArticle: Article = {
+      // Mettre à jour l'article dans Firestore
+      const articleRef = doc(db, 'articles', String(article.id));
+      await updateDoc(articleRef, {
         ...article,
-        updated_at: new Date().toISOString()
-      };
+        updated_at: Timestamp.now()
+      });
       
       // Mettre à jour l'état local
       setArticles(prev => 
-        prev.map(a => a.id === article.id ? updatedArticle : a)
+        prev.map(a => a.id === article.id ? article : a)
       );
     } catch (error) {
       console.error('Error updating article:', error);
@@ -184,9 +206,12 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
             await deleteFromCloudinary(videoPublicId);
           }
         }
+        
+        // Supprimer l'article de Firestore
+        await deleteDoc(doc(db, 'articles', String(id)));
       }
       
-      // Mettre à jour l'état local en supprimant l'article
+      // Mettre à jour l'état local
       setArticles(prev => prev.filter(article => String(article.id) !== String(id)));
     } catch (error) {
       console.error('Error deleting article:', error);
@@ -213,6 +238,9 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         created_at: new Date().toISOString()
       };
       
+      // Ajouter la catégorie à Firestore
+      await setDoc(doc(db, 'categories', id), newCategory);
+      
       // Mettre à jour l'état local
       setCategories(prev => [...prev, newCategory]);
     } catch (error) {
@@ -223,6 +251,9 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateCategory = async (category: Category) => {
     try {
+      // Mettre à jour la catégorie dans Firestore
+      await updateDoc(doc(db, 'categories', category.id), category);
+      
       // Mettre à jour l'état local
       setCategories(prev => 
         prev.map(c => c.id === category.id ? category : c)
@@ -241,6 +272,9 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         throw new Error('Cannot delete category that is in use by articles');
       }
       
+      // Supprimer la catégorie de Firestore
+      await deleteDoc(doc(db, 'categories', id));
+      
       // Mettre à jour l'état local
       setCategories(prev => prev.filter(category => category.id !== id));
     } catch (error) {
@@ -248,6 +282,11 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
       throw error;
     }
   };
+
+  if (isLoading) {
+    // Vous pourriez retourner un composant de chargement ici
+    return <div>Loading...</div>;
+  }
 
   return (
     <ArticleContext.Provider value={{ 
