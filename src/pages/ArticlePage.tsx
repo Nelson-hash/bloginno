@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, AlertCircle, Image } from 'lucide-react';
 import { useArticles } from '../context/ArticleContext';
 import { buildImageUrl, buildVideoUrl } from '../lib/cloudinary';
 
@@ -8,6 +8,11 @@ const ArticlePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { articles, categories } = useArticles();
   const article = articles.find(a => a.id === Number(id));
+  const [imageError, setImageError] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+
+  // Image par défaut en cas d'erreur
+  const fallbackImage = 'https://images.unsplash.com/photo-1553484771-689277e6c44c?q=80&w=1770&auto=format&fit=crop';
 
   if (!article) {
     return (
@@ -42,19 +47,31 @@ const ArticlePage: React.FC = () => {
 
         {/* Article Header */}
         <div className="bg-white rounded-xl overflow-hidden shadow-lg mb-8">
-          <div className="h-96 overflow-hidden">
-            {article.videoUrl && article.videoUrl !== 'video-uploaded' ? (
+          <div className="h-96 overflow-hidden relative">
+            {article.videoUrl && article.videoUrl !== 'video-uploaded' && !videoError ? (
               <video 
                 src={buildVideoUrl(article.videoUrl)} 
                 controls
                 className="w-full h-full object-cover"
+                loading="lazy"
+                onError={() => setVideoError(true)}
               />
             ) : (
               <img 
-                src={buildImageUrl(article.imageUrl)} 
+                src={imageError ? fallbackImage : buildImageUrl(article.imageUrl)} 
                 alt={article.title} 
                 className="w-full h-full object-cover"
+                loading="lazy"
+                onError={() => setImageError(true)}
               />
+            )}
+            
+            {/* Message d'erreur en cas de problème de média */}
+            {(imageError || videoError) && (
+              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-3 flex items-center">
+                <AlertCircle className="w-5 h-5 mr-2 text-red-400" />
+                <span className="text-sm">Le média d'origine n'a pas pu être chargé</span>
+              </div>
             )}
           </div>
           
