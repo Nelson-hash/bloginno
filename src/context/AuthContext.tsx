@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { User } from '@supabase/supabase-js';
+import { auth } from '../lib/firebase';
+import { 
+  User, 
+  signInWithEmailAndPassword, 
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -9,8 +14,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-// Hardcoded admin credentials
-const ADMIN_EMAIL = "iavengers";
+// Hardcoded admin credentials - nous conservons cette approche
+const ADMIN_EMAIL = "iavengers@bloginno.com";
 const ADMIN_PASSWORD = "inno2025@studio";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,58 +25,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setUser(session?.user || null);
+    // Observer pour les changements d'état d'authentification
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setIsAuthenticated(!!currentUser);
+      setUser(currentUser);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      setUser(session?.user || null);
-    });
+    // Vérifier si nous avons déjà un admin en session locale
+    const storedAuth = localStorage.getItem('bloginno_admin_auth');
+    if (storedAuth) {
+      try {
+        const { isAuth, adminUser } = JSON.parse(storedAuth);
+        if (isAuth && !user) {
+          setIsAuthenticated(true);
+          setUser(adminUser as User);
+        }
+      } catch (error) {
+        console.error('Error parsing stored auth data:', error);
+        localStorage.removeItem('bloginno_admin_auth');
+      }
+    }
 
-    return () => subscription.unsubscribe();
+    // Clean up the observer when component unmounts
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Check if the credentials match the hardcoded admin values
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Create a custom fake session
-        const fakeUser = {
-          id: 'admin-user',
-          email: 'admin@bloginno.com',
-          app_metadata: { provider: 'email' },
-          user_metadata: { full_name: 'Admin User' },
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-        } as User;
+      // Vérifier si ce sont les identifiants admin
+      if (email === "iavengers" && password === "inno2025@studio") {
+        // Créer une fausse session admin
+        const adminUser = {
+          uid: 'admin-user',
+          email: ADMIN_EMAIL,
+          displayName: 'Admin User',
+          isAdmin: true,
+        } as unknown as User;
 
         setIsAuthenticated(true);
-        setUser(fakeUser);
+        setUser(adminUser);
         
-        // Store admin authentication in localStorage to persist across page refreshes
+        // Stocker l'authentification admin dans localStorage
         localStorage.setItem('bloginno_admin_auth', JSON.stringify({
-          isAuthenticated: true,
-          user: fakeUser
+          isAuth: true,
+          adminUser
         }));
         
         return true;
       }
       
-      // If not the hardcoded admin, revert to regular Supabase auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-      
-      setIsAuthenticated(!!data.session);
-      setUser(data.session?.user || null);
-      return !!data.session;
+      // Sinon, utiliser Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return !!userCredential.user;
     } catch (error) {
       console.error('Error logging in:', error);
       return false;
@@ -80,40 +85,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      // Check if it's the hardcoded admin user
-      if (user?.id === 'admin-user') {
-        // Clear admin authentication from localStorage
+      // Vérifier s'il s'agit de l'utilisateur admin
+      if (user?.uid === 'admin-user') {
         localStorage.removeItem('bloginno_admin_auth');
         setIsAuthenticated(false);
         setUser(null);
         return;
       }
       
-      // Otherwise, use the regular Supabase logout
-      await supabase.auth.signOut();
-      setIsAuthenticated(false);
-      setUser(null);
+      // Sinon, utiliser Firebase Auth
+      await signOut(auth);
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
-
-  // Check for stored admin authentication on component mount
-  useEffect(() => {
-    const storedAuth = localStorage.getItem('bloginno_admin_auth');
-    if (storedAuth) {
-      try {
-        const { isAuthenticated: isAuth, user: storedUser } = JSON.parse(storedAuth);
-        if (isAuth && storedUser) {
-          setIsAuthenticated(true);
-          setUser(storedUser as User);
-        }
-      } catch (error) {
-        console.error('Error parsing stored auth data:', error);
-        localStorage.removeItem('bloginno_admin_auth');
-      }
-    }
-  }, []);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
