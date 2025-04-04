@@ -1,63 +1,73 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-// Type simplifié pour remplacer User de Firebase
-interface SimpleUser {
-  id: string;
-  email: string | null;
-  displayName?: string | null;
-  isAdmin?: boolean;
-}
+import { auth } from '../lib/firebase';
+import { 
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, 
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: SimpleUser | null;
+  user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
-// Hardcoded admin credentials
-const ADMIN_EMAIL = "iavengers";
+// Identifiants admin spéciaux
+const ADMIN_USERNAME = "iavengers";
 const ADMIN_PASSWORD = "inno2025@studio";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<SimpleUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
-  // Vérifier si nous avons déjà un admin en session locale au chargement
   useEffect(() => {
+    // Vérifier l'authentification stockée localement
     const storedAuth = localStorage.getItem('bloginno_admin_auth');
     if (storedAuth) {
       try {
         const { isAuth, adminUser } = JSON.parse(storedAuth);
-        if (isAuth && adminUser) {
+        if (isAuth) {
           setIsAuthenticated(true);
-          setUser(adminUser as SimpleUser);
+          setUser(adminUser as User);
         }
       } catch (error) {
         console.error('Error parsing stored auth data:', error);
         localStorage.removeItem('bloginno_admin_auth');
       }
     }
+
+    // Écouter les changements d'état d'authentification Firebase
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setIsAuthenticated(true);
+        setUser(currentUser);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Vérifier si ce sont les identifiants admin
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Créer une fausse session admin
-        const adminUser: SimpleUser = {
-          id: 'admin-user',
+      // Vérifier d'abord si ce sont les identifiants admin spéciaux
+      if (email === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        // Créer un admin spécial
+        const adminUser = {
+          uid: 'admin-user',
           email: 'admin@bloginno.com',
           displayName: 'Admin User',
           isAdmin: true,
-        };
+        } as unknown as User;
 
         setIsAuthenticated(true);
         setUser(adminUser);
         
-        // Stocker l'authentification admin dans localStorage
+        // Stocker dans localStorage
         localStorage.setItem('bloginno_admin_auth', JSON.stringify({
           isAuth: true,
           adminUser
@@ -66,18 +76,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
       
-      // Si ce ne sont pas les identifiants admin, échec de connexion
-      return false;
+      // Sinon, essayer l'authentification Firebase
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        return !!userCredential.user;
+      } catch (firebaseError) {
+        console.error('Firebase auth error:', firebaseError);
+        return false;
+      }
     } catch (error) {
-      console.error('Error logging in:', error);
+      console.error('Login error:', error);
       return false;
     }
   };
 
   const logout = async () => {
     try {
-      // Supprimer les données d'authentification du localStorage
-      localStorage.removeItem('bloginno_admin_auth');
+      if (user?.uid === 'admin-user') {
+        // Déconnexion de l'admin spécial
+        localStorage.removeItem('bloginno_admin_auth');
+      } else {
+        // Déconnexion Firebase
+        await signOut(auth);
+      }
+      
       setIsAuthenticated(false);
       setUser(null);
     } catch (error) {
