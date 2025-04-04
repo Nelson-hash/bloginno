@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock } from 'lucide-react';
 import { useArticles } from '../context/ArticleContext';
+import { buildImageUrl, buildVideoUrl } from '../lib/cloudinary';
 
 const ArticlePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,13 +45,13 @@ const ArticlePage: React.FC = () => {
           <div className="h-96 overflow-hidden">
             {article.videoUrl && article.videoUrl !== 'video-uploaded' ? (
               <video 
-                src={article.videoUrl} 
+                src={buildVideoUrl(article.videoUrl)} 
                 controls
                 className="w-full h-full object-cover"
               />
             ) : (
               <img 
-                src={article.imageUrl} 
+                src={buildImageUrl(article.imageUrl)} 
                 alt={article.title} 
                 className="w-full h-full object-cover"
               />
