@@ -1,15 +1,10 @@
 // src/lib/cloudinary.ts
 import axios from 'axios';
 
-// Votre Cloud Name Cloudinary
-const CLOUD_NAME = 'votre_cloud_name';
-// Votre preset non-signé (nous allons le créer à l'étape suivante)
+// Vos informations Cloudinary
+const CLOUD_NAME = 'ddjjnwkcj';
+// Votre preset non-signé (créez-le dans le dashboard Cloudinary comme expliqué plus bas)
 const UPLOAD_PRESET = 'bloginno_uploads';
-
-interface UploadResponse {
-  secure_url: string;
-  public_id: string;
-}
 
 /**
  * Télécharge un fichier vers Cloudinary
@@ -40,7 +35,7 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
  */
 export const buildImageUrl = (url: string, width = 800): string => {
   // Si ce n'est pas une URL Cloudinary, on la retourne telle quelle
-  if (!url.includes('cloudinary.com')) {
+  if (!url || !url.includes('cloudinary.com')) {
     return url;
   }
   
@@ -53,7 +48,7 @@ export const buildImageUrl = (url: string, width = 800): string => {
  */
 export const buildVideoUrl = (url: string): string => {
   // Si ce n'est pas une URL Cloudinary, on la retourne telle quelle
-  if (!url.includes('cloudinary.com')) {
+  if (!url || !url.includes('cloudinary.com')) {
     return url;
   }
   
