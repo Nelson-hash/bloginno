@@ -4,6 +4,7 @@ import { ArrowRight, Calendar, Clock, ExternalLink, Lightbulb, Rocket, Sparkles 
 import * as LucideIcons from 'lucide-react';
 import { useArticles } from '../context/ArticleContext';
 import { useAuth } from '../context/AuthContext';
+import { buildImageUrl, buildVideoUrl } from '../lib/cloudinary';
 
 function HomePage() {
   const { articles, categories } = useArticles();
@@ -94,13 +95,13 @@ function HomePage() {
                 <div className="h-56 overflow-hidden">
                   {article.videoUrl && article.videoUrl !== 'video-uploaded' ? (
                     <video 
-                      src={article.videoUrl} 
+                      src={buildVideoUrl(article.videoUrl)} 
                       controls
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <img 
-                      src={article.imageUrl} 
+                      src={buildImageUrl(article.imageUrl, 400)} 
                       alt={article.title} 
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                     />
