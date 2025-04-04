@@ -7,13 +7,21 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
+  // Check if the user is authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  // We consider both the hardcoded admin (with ID 'admin-user') 
+  // and any regular authenticated user to be authorized
+  if (user && (user.id === 'admin-user' || user.id)) {
+    return <>{children}</>;
+  }
+
+  // If we get here, something is wrong with authentication
+  return <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;
