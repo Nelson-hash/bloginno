@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: { id: string; email: string } | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -17,66 +17,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Check active session when the provider loads
-    const checkSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error checking session:', error);
-          setIsAuthenticated(false);
-          setUser(null);
-        } else if (data.session) {
+    // Check for existing session in localStorage
+    const checkSession = () => {
+      const session = localStorage.getItem('blogInnoSession');
+      if (session) {
+        try {
+          const userData = JSON.parse(session);
           setIsAuthenticated(true);
-          setUser({ 
-            id: data.session.user.id, 
-            email: data.session.user.email || ''
-          });
+          setUser(userData);
+        } catch (err) {
+          console.error('Invalid session data:', err);
+          localStorage.removeItem('blogInnoSession');
         }
-      } catch (err) {
-        console.error('Session check error:', err);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     };
-    
+
     checkSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session) {
-          setIsAuthenticated(true);
-          setUser({ 
-            id: session.user.id, 
-            email: session.user.email || ''
-          });
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Error logging in:', error);
-        return false;
+      // For demo purposes, we're using hardcoded credentials
+      // In a real app, this would validate against your Supabase auth
+      if (username === 'Inno' && password === '2025') {
+        const userData = {
+          id: '1',
+          email: username
+        };
+        
+        // Save to localStorage for persistence
+        localStorage.setItem('blogInnoSession', JSON.stringify(userData));
+        
+        setIsAuthenticated(true);
+        setUser(userData);
+        
+        return true;
       }
-
-      return true;
+      return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -85,7 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async (): Promise<void> => {
     try {
-      await supabase.auth.signOut();
+      // Clear local session
+      localStorage.removeItem('blogInnoSession');
+      
+      setIsAuthenticated(false);
+      setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
