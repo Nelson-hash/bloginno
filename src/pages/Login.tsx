@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,16 +24,23 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate('/admin');
+      // For this implementation, we'll just check for hardcoded credentials
+      // In production, this should be replaced with proper auth
+      if (email === 'Inno' && password === '2025') {
+        // Use the supabase login for session management
+        const success = await login(email, password);
+        if (success) {
+          navigate('/admin');
+        } else {
+          setError('Authentication failed. Please try again.');
+        }
       } else {
-        setError('Invalid email or password');
+        setError('Invalid username or password');
+        setIsLoading(false);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
       console.error('Login error:', err);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -62,7 +69,7 @@ const Login: React.FC = () => {
           
           <div className="rounded-md -space-y-px">
             <div className="mb-4">
-              <label htmlFor="email" className="sr-only">Email</label>
+              <label htmlFor="email" className="sr-only">Username</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
@@ -70,12 +77,12 @@ const Login: React.FC = () => {
                 <input
                   id="email"
                   name="email"
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none rounded-t-md relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
+                  placeholder="Username"
                 />
               </div>
             </div>
@@ -112,15 +119,6 @@ const Login: React.FC = () => {
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
-          </div>
-          
-          <div className="text-center">
-            <p className="mt-2 text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign up here
-              </Link>
-            </p>
           </div>
         </form>
       </div>
