@@ -4,7 +4,7 @@ import { useArticles } from '../../context/ArticleContext';
 import { Article } from '../../types';
 import FileUpload from '../FileUpload';
 import { Calendar, Clock, CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { uploadFile } from '../../lib/upload';
+import { uploadFile } from '../../utils/fileUtils';
 
 interface ArticleFormProps {
   article?: Article;
@@ -103,6 +103,8 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
         const uploadedImageUrl = await uploadFile(imageFile, 'images');
         if (uploadedImageUrl) {
           finalImageUrl = uploadedImageUrl;
+        } else {
+          throw new Error('Failed to upload image');
         }
       }
       
@@ -110,6 +112,8 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
         const uploadedVideoUrl = await uploadFile(videoFile, 'videos');
         if (uploadedVideoUrl) {
           finalVideoUrl = uploadedVideoUrl;
+        } else {
+          throw new Error('Failed to upload video');
         }
       }
       
@@ -199,9 +203,82 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Rest of the component remains the same */}
-    </div>
-  );
-};
-
-export default ArticleForm;
+      <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6 relative">
+        {showSuccess && (
+          <div className="absolute top-0 left-0 right-0 bg-green-100 p-4 rounded-t-lg flex items-center justify-center text-green-700">
+            <CheckCircle className="w-5 h-5 mr-2" />
+            Article saved successfully! Redirecting...
+          </div>
+        )}
+        
+        <div className="mb-6">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+            Title
+          </label>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.title ? 'border-red-500' : 'border-gray-300'
+            }`}
+            data-error={!!errors.title}
+            placeholder="Enter a compelling title"
+          />
+          {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-2">
+            Summary
+          </label>
+          <input
+            type="text"
+            id="summary"
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.summary ? 'border-red-500' : 'border-gray-300'
+            }`}
+            data-error={!!errors.summary}
+            placeholder="Write a brief summary of your article"
+          />
+          {errors.summary && <p className="mt-1 text-sm text-red-600">{errors.summary}</p>}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+              Category
+            </label>
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.category ? 'border-red-500' : 'border-gray-300'
+              }`}
+              data-error={!!errors.category}
+            >
+              <option value="">Select a category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+          </div>
+          
+          <div>
+            <label htmlFor="readTime" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <Clock className="w-4 h-4 mr-1" /> Read Time
+            </label>
+            <select
+              id="readTime"
+              value={readTime}
+              onChange={(e) => setReadTime(e.target.value)}
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.readTime ? 'border-red-500' : 'border-gray-300'
+              }`}
