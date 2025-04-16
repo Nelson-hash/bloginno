@@ -19,10 +19,29 @@ export const uploadFile = async (file: File, bucket: string = 'media'): Promise<
     const fileName = generateUniqueFileName(file.name);
     const filePath = `${fileName}`;
 
+    // Check if bucket exists and create it if it doesn't
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(b => b.name === bucket);
+    
+    if (!bucketExists) {
+      // Try to create the bucket
+      const { error } = await supabase.storage.createBucket(bucket, {
+        public: true // Make files publicly accessible
+      });
+      
+      if (error) {
+        console.error(`Error creating bucket ${bucket}:`, error);
+        return null;
+      }
+    }
+
     // Upload file to Supabase Storage
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
 
     if (error) {
       console.error('Error uploading file:', error);
@@ -47,7 +66,8 @@ export const uploadFile = async (file: File, bucket: string = 'media'): Promise<
 export const deleteFile = async (url: string, bucket: string = 'media'): Promise<boolean> => {
   try {
     // Extract file path from URL
-    const filePath = url.split('/').pop();
+    const baseUrl = `${supabase.supabaseUrl}/storage/v1/object/public/${bucket}/`;
+    const filePath = url.replace(baseUrl, '');
     
     if (!filePath) {
       console.error('Invalid file URL');
