@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Lock, Mail } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Login: React.FC = () => {
@@ -8,8 +8,15 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/admin');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,8 +30,8 @@ const Login: React.FC = () => {
       } else {
         setError('Invalid email or password');
       }
-    } catch (err) {
-      setError('An error occurred during login');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during login');
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -47,9 +54,8 @@ const Login: React.FC = () => {
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
               <div className="flex">
-                <div>
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
           )}
@@ -106,6 +112,15 @@ const Login: React.FC = () => {
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
+          </div>
+          
+          <div className="text-center">
+            <p className="mt-2 text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                Sign up here
+              </Link>
+            </p>
           </div>
         </form>
       </div>
