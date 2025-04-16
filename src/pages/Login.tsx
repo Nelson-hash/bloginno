@@ -25,6 +25,7 @@ const Login: React.FC = () => {
       }
     } catch (err) {
       setError('An error occurred during login');
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
