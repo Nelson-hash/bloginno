@@ -80,7 +80,7 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch articles from Supabase
+        // Attempt to fetch articles from Supabase
         const { data: articlesData, error: articlesError } = await supabase
           .from('articles')
           .select('*')
@@ -88,7 +88,7 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (articlesError) {
           console.error('Error fetching articles from Supabase:', articlesError);
-          // If there's an error with Supabase, we'll use the initial data
+          // Use initial data as fallback
         } else if (articlesData && articlesData.length > 0) {
           // Transform the data to match our Article type
           const transformedArticles: Article[] = articlesData.map(item => ({
@@ -105,20 +105,20 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setArticles(transformedArticles);
         }
 
-        // Fetch categories from Supabase
+        // Attempt to fetch categories from Supabase
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
           .select('*');
 
         if (categoriesError) {
           console.error('Error fetching categories from Supabase:', categoriesError);
-          // If there's an error with Supabase, we'll use the initial data
+          // Use initial data as fallback
         } else if (categoriesData && categoriesData.length > 0) {
           setCategories(categoriesData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
-        // If there's an error, we'll use the initial data
+        // Use initial data as fallback
       } finally {
         setLoading(false);
       }
@@ -143,6 +143,8 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
         user_id: user.id
       };
 
+      console.log('Inserting article into Supabase:', newArticle);
+
       const { data, error } = await supabase
         .from('articles')
         .insert([newArticle])
@@ -150,8 +152,15 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error adding article to Supabase:', error);
-        return null;
+        throw new Error(error.message);
       }
+
+      if (!data || data.length === 0) {
+        console.error('No data returned after insert');
+        throw new Error('No data returned after insert');
+      }
+
+      console.log('Article added successfully:', data[0]);
 
       // Transform the response to match our Article type
       const createdArticle: Article = {
@@ -170,7 +179,7 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return createdArticle;
     } catch (error) {
       console.error('Error adding article:', error);
-      return null;
+      throw error;
     }
   };
 
@@ -195,14 +204,14 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error updating article in Supabase:', error);
-        return false;
+        throw new Error(error.message);
       }
 
       setArticles(prev => prev.map(a => a.id === article.id ? article : a));
       return true;
     } catch (error) {
       console.error('Error updating article:', error);
-      return false;
+      throw error;
     }
   };
 
@@ -217,14 +226,14 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error deleting article from Supabase:', error);
-        return false;
+        throw new Error(error.message);
       }
 
       setArticles(prev => prev.filter(article => article.id !== id));
       return true;
     } catch (error) {
       console.error('Error deleting article:', error);
-      return false;
+      throw error;
     }
   };
 
@@ -247,7 +256,12 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error adding category to Supabase:', error);
-        return null;
+        throw new Error(error.message);
+      }
+
+      if (!data || data.length === 0) {
+        console.error('No data returned after category insert');
+        throw new Error('No data returned after category insert');
       }
 
       const createdCategory: Category = data[0];
@@ -255,7 +269,7 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return createdCategory;
     } catch (error) {
       console.error('Error adding category:', error);
-      return null;
+      throw error;
     }
   };
 
@@ -273,14 +287,14 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error updating category in Supabase:', error);
-        return false;
+        throw new Error(error.message);
       }
 
       setCategories(prev => prev.map(c => c.id === category.id ? category : c));
       return true;
     } catch (error) {
       console.error('Error updating category:', error);
-      return false;
+      throw error;
     }
   };
 
@@ -302,14 +316,14 @@ export const ArticleProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (error) {
         console.error('Error deleting category from Supabase:', error);
-        return false;
+        throw new Error(error.message);
       }
 
       setCategories(prev => prev.filter(category => category.id !== id));
       return true;
     } catch (error) {
       console.error('Error deleting category:', error);
-      return false;
+      throw error;
     }
   };
 
