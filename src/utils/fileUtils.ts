@@ -19,22 +19,6 @@ export const uploadFile = async (file: File, bucket: string = 'media'): Promise<
     const fileName = generateUniqueFileName(file.name);
     const filePath = `${fileName}`;
 
-    // Check if bucket exists and create it if it doesn't
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(b => b.name === bucket);
-    
-    if (!bucketExists) {
-      // Try to create the bucket
-      const { error } = await supabase.storage.createBucket(bucket, {
-        public: true // Make files publicly accessible
-      });
-      
-      if (error) {
-        console.error(`Error creating bucket ${bucket}:`, error);
-        return null;
-      }
-    }
-
     // Upload file to Supabase Storage
     const { data, error } = await supabase.storage
       .from(bucket)
