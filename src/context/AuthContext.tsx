@@ -9,6 +9,9 @@ interface AuthContextType {
   loading: boolean;
 }
 
+// Generate a valid UUID for the mock user
+const MOCK_USER_ID = '123e4567-e89b-12d3-a456-426614174000';
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // In a real app, this would validate against your Supabase auth
       if (username === 'Inno' && password === '2025') {
         const userData = {
-          id: '1',
+          id: MOCK_USER_ID, // Use a valid UUID format
           email: username
         };
         
