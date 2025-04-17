@@ -119,7 +119,7 @@ CREATE POLICY "Users can delete their own categories"
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/bloginno.git
+git clone https://github.com/Nelson-hash/bloginno.git
 cd bloginno
 ```
 
