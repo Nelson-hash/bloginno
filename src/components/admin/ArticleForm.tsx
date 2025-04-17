@@ -100,8 +100,10 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
       let finalVideoUrl = videoUrl;
       
       if (imageFile) {
+        console.log('Uploading image file...');
         const uploadedImageUrl = await uploadFile(imageFile, 'images');
         if (uploadedImageUrl) {
+          console.log('Image uploaded successfully:', uploadedImageUrl);
           finalImageUrl = uploadedImageUrl;
         } else {
           throw new Error('Failed to upload image');
@@ -109,8 +111,10 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
       }
       
       if (videoFile) {
+        console.log('Uploading video file...');
         const uploadedVideoUrl = await uploadFile(videoFile, 'videos');
         if (uploadedVideoUrl) {
+          console.log('Video uploaded successfully:', uploadedVideoUrl);
           finalVideoUrl = uploadedVideoUrl;
         } else {
           throw new Error('Failed to upload video');
@@ -128,16 +132,21 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
         videoUrl: finalVideoUrl !== '' ? finalVideoUrl : undefined
       };
       
+      console.log('Saving article data:', articleData);
+      
       let success = false;
       
       if (article) {
+        console.log('Updating existing article...');
         success = await updateArticle({ ...articleData, id: article.id });
       } else {
+        console.log('Creating new article...');
         const newArticle = await addArticle(articleData);
         success = !!newArticle;
       }
       
       if (success) {
+        console.log('Article saved successfully');
         setShowSuccess(true);
         
         setTimeout(() => {
@@ -148,11 +157,13 @@ const ArticleForm: React.FC<ArticleFormProps> = ({ article, onSaved }) => {
           }
         }, 1500);
       } else {
-        setErrors({ submit: 'Failed to save article. Please try again.' });
+        throw new Error('Failed to save article');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving article:', error);
-      setErrors({ submit: 'An unexpected error occurred. Please try again.' });
+      setErrors({ 
+        submit: error.message || 'An unexpected error occurred. Please try again.' 
+      });
     } finally {
       setIsSubmitting(false);
     }
